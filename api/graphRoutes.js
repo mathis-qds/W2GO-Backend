@@ -1,13 +1,16 @@
-// api/graphRoutes.js
 const express = require('express');
 const axios = require('axios');
 const router = express.Router();
 
-// Route to get Konvolut by ID (down to page level)
-router.get('/:konvolutId', async (req, res) => {
-    const { konvolutId } = req.params;
+const { konvolute, findIdBySignature } = require('../assets/konvolute');
+
+
+// Route to get konvolut by signature (down to page level)
+router.get('/:signature', async (req, res) => {
+    const { signature } = req.params;
+    const konvolutId = findIdBySignature(konvolute, signature)
     try {
-        const response = await axios.get(`https://api.wossidia.de/graph/${konvolutId}`);
+        const response = await axios.get(`https://api.wossidia.de/graph/${konvolutId}/<0:102:1>103<0:103:1>104`);
         res.json(response.data);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -15,9 +18,9 @@ router.get('/:konvolutId', async (req, res) => {
 });
 
 // Route to handle ImageDigital attribute and convert decimal to hex
-router.get('/image/:hexValue/:type', (req, res) => {
-    const { hexValue, type } = req.params;
-    const hexString = parseInt(hexValue, 10).toString(16).toUpperCase();
+router.get('/image/:imageId/:type', (req, res) => {
+    const { imageId, type } = req.params;
+    const hexString = parseInt(imageId).toString(16);
 
     const validTypes = ['working', 'master', 'thumb'];
     if (!validTypes.includes(type)) {
