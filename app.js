@@ -18,7 +18,6 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Use routes
-
 app.use("/catalog", catalogRoutes);
 app.use("/nodes", nodeRoutes);
 app.use("/graph", graphRoutes);

@@ -1,21 +1,24 @@
 const express = require('express');
 const multer = require('multer');
-const fs = require('fs');
+//const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const router = express.Router();
 const upload = multer();
+const { createNode } = require('../util/nodeUtil');
 
-router.post('/submit', upload.single('audio'), (req, res) => {
+router.post('/submit', upload.single('audio'), async (req, res) => {
   try {
-    const { name, transcription, language } = req.body; 
+    const { type, data, transcriber, source, language } = req.body; 
     const audio = req.file; 
 
     const formData = {
-      name,
-      transcription,
-      language,
-      timestamp: new Date().toISOString(),
+      time: new Date().toISOString(),
+      type,
+      data,
+      transcriber,
+      source,
+      language
     };
 
     if (audio) {
@@ -23,15 +26,15 @@ router.post('/submit', upload.single('audio'), (req, res) => {
       formData.audio = audioBase64; 
     }
 
-    const jsonFileName = `${uuidv4()}.json`;
-    const jsonFilePath = path.join(__dirname, '../files', jsonFileName);
-    fs.writeFileSync(jsonFilePath, JSON.stringify(formData, null, 2), 'utf-8');
+    const nodeType = 41;
+    const nodeResponse = await createNode(nodeType, formData);
 
-    res.status(200).json({ message: 'Data submitted successfully', jsonFilePath });
+    res.status(201).json({ message: 'Node created successfully', data: nodeResponse });
   } catch (error) {
-    console.error('Error saving form data:', error);
-    res.status(500).json({ message: 'Error saving form data' });
+    console.error('Error during submission or node creation:', error);
+    res.status(500).json({ message: 'Error during submission or node creation', details: error.message });
   }
 });
+
 
 module.exports = router;

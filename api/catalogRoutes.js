@@ -10,7 +10,7 @@ const baseUrl = 'https://api.wossidia.de/catalog';
 router.get('/nodetype/40', async (req, res) => {
     try {
         const response = await axios.get(`${baseUrl}/nodetype/40`);
-        res.json(response.data);
+        res.json(response.data.result);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -20,7 +20,7 @@ router.get('/nodetype/40', async (req, res) => {
 router.get('/nodetype/41', async (req, res) => {
     try {
         const response = await axios.get(`${baseUrl}/nodetype/41`);
-        res.json(response.data);
+        res.json(response.data.result);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
