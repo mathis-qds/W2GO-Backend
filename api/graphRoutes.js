@@ -11,7 +11,6 @@ const baseUrl = "https://api.wossidia.de/graph";
 router.get("/:signature", async (req, res) => {
   const { signature } = req.params;
   const konvolutId = findIdBySignature(konvolute, signature);
-  console.log(konvolutId);
   try {
     // Determine the URL path based on the signature
     const urlPath = signature.startsWith("ZTW")
