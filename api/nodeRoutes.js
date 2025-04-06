@@ -16,9 +16,6 @@ router.get("/40", async (req, res) => {
     const response = await axios.get(`${baseUrl}/40`);
     const nodes = response.data.result;
 
-    console.log(response);
-    console.log(nodes);
-
     const processedNodes = nodes.map((item) => {
       // Check if attributes.pool exists and is a string
       const poolString = item.attributes?.pool;
