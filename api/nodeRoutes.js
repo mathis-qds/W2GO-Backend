@@ -1,3 +1,4 @@
+
 // api/nodeRoutes.js
 const express = require("express");
 const axios = require("axios");
@@ -14,6 +15,9 @@ router.get("/40", async (req, res) => {
     const { zaw, ztw } = req.query; // Extract query parameters
     const response = await axios.get(`${baseUrl}/40`);
     const nodes = response.data.result;
+
+    console.log(response);
+    console.log(nodes);
 
     const processedNodes = nodes.map((item) => {
       // Check if attributes.pool exists and is a string

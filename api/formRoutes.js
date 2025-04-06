@@ -9,8 +9,8 @@ const { createNode } = require('../util/nodeUtil');
 
 router.post('/submit', upload.single('audio'), async (req, res) => {
   try {
-    const { type, data, transcriber, source, language } = req.body; 
-    const audio = req.file; 
+    const { type, data, transcriber, source, language } = req.body;
+    req.file
 
     const formData = {
       time: new Date().toISOString(),
@@ -21,12 +21,8 @@ router.post('/submit', upload.single('audio'), async (req, res) => {
       language
     };
 
-    if (audio) {
-      const audioBase64 = audio.buffer.toString('base64'); 
-      formData.audio = audioBase64; 
-    }
-
     const nodeType = 41;
+
     const nodeResponse = await createNode(nodeType, formData);
 
     res.status(201).json({ message: 'Node created successfully', data: nodeResponse });
