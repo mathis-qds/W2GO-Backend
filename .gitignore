@@ -1,3 +1,4 @@
-config/*
+config/apiConfig.json
 node_modules
 /files/
+.idea/

@@ -1,61 +1,65 @@
 const express = require("express");
 const axios = require("axios");
+const { API_BASE, DIGIPOOL_BASE, AXIOS_TIMEOUT, GRAPH_PATHS, VALID_IMAGE_TYPES } = require("../config/constants");
+const { findIdBySignature } = require("../util/konvoluteLoader");
 const router = express.Router();
 
-const { konvolute, findIdBySignature } = require("../assets/konvolute");
+// Signatur-Format validieren (z.B. ZAW-B207-001)
+const SIGNATURE_PATTERN = /^[A-Z]{3}-[A-Z0-9]+-\d{3}$/;
 
-// Base URL for the graph API
-const baseUrl = "https://api.wossidia.de/graph";
+// Gemeinsame Logik: Signatur auflösen und Graph-Daten abrufen
+async function fetchGraphData(signature, ztwPath, zawPath) {
+  const konvolutId = findIdBySignature(signature);
+  if (!konvolutId) return null;
 
-// Route to get konvolut by signature (down to page level)
+  const graphPath = signature.startsWith("ZTW") ? ztwPath : zawPath;
+  const response = await axios.get(`${API_BASE}/graph/${konvolutId}/${graphPath}`, { timeout: AXIOS_TIMEOUT });
+  return response.data;
+}
+
+// GET /graph/:signature — Konvolut-Inhalt nach Signatur
 router.get("/:signature", async (req, res) => {
-  const { signature } = req.params;
-  const konvolutId = findIdBySignature(konvolute, signature);
+  const signature = req.params.signature.trim();
+  if (!SIGNATURE_PATTERN.test(signature)) {
+    return res.status(400).json({ error: "Ungültiges Signatur-Format" });
+  }
   try {
-    // Determine the URL path based on the signature
-    const urlPath = signature.startsWith("ZTW")
-      ? `<0:141:1>142<0:142:1>143`
-      : `<0:102:1>103<0:103:1>104`;
-
-    const response = await axios.get(`${baseUrl}/${konvolutId}/${urlPath}`);
-    res.json(response.data);
+    const data = await fetchGraphData(signature, GRAPH_PATHS.ZTW_CONTENT, GRAPH_PATHS.ZAW_CONTENT);
+    if (!data) return res.status(404).json({ error: `Signatur "${signature}" nicht gefunden` });
+    res.json(data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(502).json({ error: `Upstream-Fehler: ${error.message}` });
   }
 });
 
-
-// Route to handle ImageDigital attribute and convert decimal to hex
+// GET /graph/image/:imageId/:type — Bild-URL generieren (Dezimal → Hex)
 router.get("/image/:imageId/:type", (req, res) => {
   const { imageId, type } = req.params;
-  const hexString = parseInt(imageId).toString(16);
-
-  const validTypes = ["working", "master", "thumb"];
-  if (!validTypes.includes(type)) {
-    return res
-      .status(400)
-      .json({ error: "Invalid type. Use working, master, or thumb." });
+  const parsedId = parseInt(imageId, 10);
+  if (isNaN(parsedId)) {
+    return res.status(400).json({ error: "Ungültige Bild-ID. Muss eine Zahl sein." });
+  }
+  if (!VALID_IMAGE_TYPES.includes(type)) {
+    return res.status(400).json({ error: `Ungültiger Typ. Erlaubt: ${VALID_IMAGE_TYPES.join(", ")}` });
   }
 
-  const imageUrl = `https://digipool.wossidia.de/${hexString}/${type}`;
-  res.json({ imageUrl });
+  const hexId = parsedId.toString(16);
+  res.json({ imageUrl: `${DIGIPOOL_BASE}/${hexId}/${type}` });
 });
 
+// GET /graph/transcript/:signature — Transkriptionen nach Signatur
 router.get("/transcript/:signature", async (req, res) => {
-  const { signature } = req.params;
-  const konvolutId = findIdBySignature(konvolute, signature);
+  const signature = req.params.signature.trim();
+  if (!SIGNATURE_PATTERN.test(signature)) {
+    return res.status(400).json({ error: "Ungültiges Signatur-Format" });
+  }
   try {
-    // Determine the URL path based on the signature
-    const urlPath = signature.startsWith("ZTW")
-      ? `%3C0:141:1%3E142%3Ctranscr_wossidia%3Eam_transcription`
-      : `%3C0:102:1%3E103%3Ctranscr_wossidia%3Eam_transcription`;
-
-    const response = await axios.get(`${baseUrl}/${konvolutId}/${urlPath}`);
-    res.json(response.data);
+    const data = await fetchGraphData(signature, GRAPH_PATHS.ZTW_TRANSCRIPT, GRAPH_PATHS.ZAW_TRANSCRIPT);
+    if (!data) return res.status(404).json({ error: `Signatur "${signature}" nicht gefunden` });
+    res.json(data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(502).json({ error: `Upstream-Fehler: ${error.message}` });
   }
 });
-
 
 module.exports = router;

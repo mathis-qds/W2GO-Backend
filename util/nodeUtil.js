@@ -1,30 +1,30 @@
 const axios = require("axios");
-const { fetchAuthToken } = require("./authUtil"); // Adjust path as necessary
-
-const baseUrl = "https://api.wossidia.de/update";
+const { fetchAuthToken } = require("./authUtil");
+const { API_BASE, AXIOS_TIMEOUT } = require("../config/constants");
 
 async function createNode(nodeType, nodeAttributes) {
-  const baseUrl = "https://api.wossidia.de/update/nodeCreate";
+  try {
+    const authToken = await fetchAuthToken();
 
-  const authToken = await fetchAuthToken();
-  // Construct the JSON structure as required by the API
-  const nodeData = {
-    type: nodeType,
-    attrs: nodeAttributes,
-  };    
+    const nodeData = {
+      type: nodeType,
+      attrs: nodeAttributes,
+    };
 
-  const response = await axios.post(baseUrl, null, {
-    params: {
-      auth: authToken, 
-      format: "json", 
-      json: JSON.stringify(nodeData),
-    },
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
+    const response = await axios.post(`${API_BASE}/update/nodeCreate`, null, {
+      params: {
+        auth: authToken,
+        format: "json",
+        json: JSON.stringify(nodeData),
+      },
+      headers: { "Content-Type": "application/json" },
+      timeout: AXIOS_TIMEOUT,
+    });
 
-  return response.data;
+    return response.data;
+  } catch (error) {
+    throw new Error(`Node konnte nicht erstellt werden: ${error.message}`);
+  }
 }
 
 module.exports = { createNode };

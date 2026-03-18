@@ -1,6 +1,7 @@
-// app.js
 const express = require("express");
 const cors = require("cors");
+const { CORS_ORIGIN, PORT } = require("./config/constants");
+const { initialize: initKonvolute } = require("./util/konvoluteLoader");
 
 const catalogRoutes = require("./api/catalogRoutes");
 const nodeRoutes = require("./api/nodeRoutes");
@@ -8,27 +9,25 @@ const graphRoutes = require("./api/graphRoutes");
 const formRoutes = require("./api/formRoutes");
 
 const app = express();
-const port = 3000;
-// Enable CORS for all routes
-const corsOptions = {
-  origin: "http://localhost:5173", // Allow requests only from this origin
-  optionsSuccessStatus: 200, // Some legacy browsers choke on status 204
-};
 
-app.use(cors(corsOptions));
+app.use(express.json());
+app.use(cors({ origin: CORS_ORIGIN, optionsSuccessStatus: 200 }));
 
-// Use routes
+// Routen
 app.use("/catalog", catalogRoutes);
 app.use("/nodes", nodeRoutes);
 app.use("/graph", graphRoutes);
 app.use("/form", formRoutes);
 
-// Error handling
+// Globaler Fehler-Handler
 app.use((err, req, res, next) => {
-  res.status(500).json({ message: err.message });
+  console.error("Unbehandelter Fehler:", err.message);
+  res.status(500).json({ error: "Interner Serverfehler" });
 });
 
-// Start the server
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+// Konvolute laden, dann Server starten
+initKonvolute().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server läuft auf Port ${PORT}`);
+  });
 });

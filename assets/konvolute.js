@@ -1,24 +1,5 @@
-function findIdBySignature(arr, signature) {
-  const foundObject = arr.find((obj) => obj.signature === signature);
-
-  if (foundObject) {
-    return foundObject.id;
-  } else {
-    //console.log("No object found with the given signature.");
-    return null;
-  }
-}
-
-function findNameBySignature(arr, signature) {
-  const foundObject = arr.find((obj) => obj.signature == signature);
-  //console.log(signature)
-  if (foundObject) {
-    return foundObject.attributes.name;
-  } else {
-    //console.log("No object found with the given signature.");
-    return null;
-  }
-}
+// Statische Fallback-Datei für den Fall, dass die API beim Start nicht erreichbar ist.
+// Im Normalbetrieb werden die Daten dynamisch über util/konvoluteLoader.js geladen.
 
 const konvolute = [
   {
@@ -401011,8 +400992,4 @@ const konvolute = [
   },
 ];
 
-module.exports = {
-  konvolute,
-  findIdBySignature,
-  findNameBySignature
-};
+module.exports = { konvolute };

@@ -1,36 +1,33 @@
-const express = require('express');
-const multer = require('multer');
-//const fs = require('fs');
-const path = require('path');
-const { v4: uuidv4 } = require('uuid');
+const express = require("express");
+const { NODE_TYPE_CONTRIBUTION } = require("../config/constants");
+const { createNode } = require("../util/nodeUtil");
 const router = express.Router();
-const upload = multer();
-const { createNode } = require('../util/nodeUtil');
 
-router.post('/submit', upload.single('audio'), async (req, res) => {
+// POST /form/submit — Beitrag einreichen
+router.post("/submit", async (req, res) => {
   try {
-    const { type, data, transcriber, source, language } = req.body;
-    req.file
+    const { type, data, transcriber, email, source, language } = req.body;
+
+    if (!type || !data || !source || !language) {
+      return res.status(400).json({ error: "Pflichtfelder fehlen: type, data, source, language" });
+    }
 
     const formData = {
       time: new Date().toISOString(),
       type,
       data,
-      transcriber,
+      transcriber: transcriber || "",
+      email: email || "",
       source,
-      language
+      language,
     };
 
-    const nodeType = 41;
-
-    const nodeResponse = await createNode(nodeType, formData);
-
-    res.status(201).json({ message: 'Node created successfully', data: nodeResponse });
+    const nodeResponse = await createNode(NODE_TYPE_CONTRIBUTION, formData);
+    res.status(201).json({ message: "Beitrag erfolgreich erstellt", data: nodeResponse });
   } catch (error) {
-    console.error('Error during submission or node creation:', error);
-    res.status(500).json({ message: 'Error during submission or node creation', details: error.message });
+    console.error("Fehler beim Erstellen des Beitrags:", error.message);
+    res.status(502).json({ error: `Fehler beim Erstellen: ${error.message}` });
   }
 });
-
 
 module.exports = router;

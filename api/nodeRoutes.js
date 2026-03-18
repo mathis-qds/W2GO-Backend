@@ -1,101 +1,94 @@
-
-// api/nodeRoutes.js
 const express = require("express");
 const axios = require("axios");
+const { API_BASE, AXIOS_TIMEOUT, NODE_TYPE_CATEGORY, NODE_TYPE_CONTRIBUTION } = require("../config/constants");
+const { findNameBySignature } = require("../util/konvoluteLoader");
 const router = express.Router();
-const { konvolute, findNameBySignature } = require("../assets/konvolute");
 
+// In-Memory-Cache für verarbeitete Kategorien (TTL: 5 Minuten)
+let nodesCache = null;
+let nodesCacheTime = 0;
+const CACHE_TTL = 5 * 60 * 1000;
 
-// Base URL for the nodes API
-const baseUrl = "https://api.wossidia.de/nodes";
+// Pool-String (komma-/zeilengetrennte Signaturen) in strukturiertes Array umwandeln
+function parsePool(poolString) {
+  if (!poolString || typeof poolString !== "string") return [];
 
-// Route to fetch categories (nodetype 40)
-router.get("/40", async (req, res) => {
+  return poolString
+    .split(/[\n,]+/)
+    .map((id) => id.trim())
+    .filter((id) => id)
+    .map((signature) => ({
+      signature,
+      name: findNameBySignature(signature) || null,
+    }));
+}
+
+// Kategorien von der API laden, Pool-Attribute verarbeiten und cachen
+async function fetchAndProcessNodes() {
+  const now = Date.now();
+  if (nodesCache && now - nodesCacheTime < CACHE_TTL) {
+    return nodesCache;
+  }
+
+  const response = await axios.get(`${API_BASE}/nodes/${NODE_TYPE_CATEGORY}`, { timeout: AXIOS_TIMEOUT });
+  const nodes = response.data.results || response.data.result;
+
+  if (!Array.isArray(nodes)) {
+    throw new Error("Unerwartetes Antwortformat der Upstream-API");
+  }
+
+  nodesCache = nodes.map((item) => ({
+    ...item,
+    attributes: { ...item.attributes, pool: parsePool(item.attributes?.pool) },
+  }));
+
+  nodesCacheTime = now;
+  return nodesCache;
+}
+
+// GET /nodes/40 — Kategorien mit optionalem ZAW/ZTW-Filter
+router.get(`/${NODE_TYPE_CATEGORY}`, async (req, res) => {
   try {
-    const { zaw, ztw } = req.query; // Extract query parameters
-    const response = await axios.get(`${baseUrl}/40`);
-    const nodes = response.data.result;
+    const { zaw, ztw } = req.query;
+    const allNodes = await fetchAndProcessNodes();
 
-    const processedNodes = nodes.map((item) => {
-      // Check if attributes.pool exists and is a string
-      const poolString = item.attributes?.pool;
-    
-      if (!poolString || typeof poolString !== 'string') {
-        console.warn(`Invalid pool string for item with id ${item.id}`);
-        return {
-          ...item,
-          attributes: {
-            ...item.attributes,
-            pool: [], // Default to an empty array if pool is invalid
-          },
-        };
-      }
-    
-      // Split the pool into individual IDs, trim whitespace, and flatten into one array
-      const poolIds = poolString
-        .split(/[\n,]+/) // Split on commas and newlines
-        .map((id) => id.trim()) // Trim whitespace
-        .filter((id) => id); // Remove empty entries
-    
-      // Use findNameBySignature to get the name for each poolId
-      const pool = poolIds.map((id) => ({
-        signature: id,
-        name: findNameBySignature(konvolute, id) || null, // Fallback to null if no name is found
-      }));
-    
-      // Return the updated object with transformed pool
-      return {
-        ...item,
-        attributes: {
-          ...item.attributes,
-          pool, // Replace pool with the array of objects
-        },
-      };
-    });
+    if (!zaw && !ztw) return res.json(allNodes);
 
-    // Filter processed nodes based on query parameters
-    const filteredNodes = processedNodes.filter((node) => {
-      if (zaw) {
-        // Filter for pool entries starting with "ZAW"
-        node.attributes.pool = node.attributes.pool.filter((entry) =>
-          entry.signature.startsWith("ZAW")
+    // Kopie filtern, um Cache nicht zu mutieren
+    const prefix = zaw ? "ZAW" : "ZTW";
+    const filteredNodes = allNodes
+      .map((node) => {
+        const filteredPool = node.attributes.pool.filter((entry) =>
+          entry.signature.startsWith(prefix)
         );
-        return node.attributes.pool.length > 0; // Only include nodes with matching pool entries
-      }
-      if (ztw) {
-        // Filter for pool entries starting with "ZTW"
-        node.attributes.pool = node.attributes.pool.filter((entry) =>
-          entry.signature.startsWith("ZTW")
-        );
-        return node.attributes.pool.length > 0; // Only include nodes with matching pool entries
-      }
-      return true; // If no query parameters, include all nodes
-    });
+        if (filteredPool.length === 0) return null;
+        return { ...node, attributes: { ...node.attributes, pool: filteredPool } };
+      })
+      .filter(Boolean);
 
     res.json(filteredNodes);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(502).json({ error: `Upstream-Fehler: ${error.message}` });
   }
 });
 
-
-// Route to fetch all nodes (nodetype 41)
-router.get("/41", async (req, res) => {
+// GET /nodes/41 — Alle Beitrags-Nodes
+router.get(`/${NODE_TYPE_CONTRIBUTION}`, async (req, res) => {
   try {
-    const response = await axios.get(`${baseUrl}/41`);
+    const response = await axios.get(`${API_BASE}/nodes/${NODE_TYPE_CONTRIBUTION}`, { timeout: AXIOS_TIMEOUT });
     res.json(response.data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(502).json({ error: `Upstream-Fehler: ${error.message}` });
   }
 });
 
-// Route to get Konvolute by signature (at_zaw1)
+// GET /nodes/at_zaw1 — Konvolute (Proxy)
 router.get("/at_zaw1", async (req, res) => {
   try {
-    const response = await axios.get(`${baseUrl}/at_zaw1`);
+    const response = await axios.get(`${API_BASE}/nodes/at_zaw1`, { timeout: AXIOS_TIMEOUT });
     res.json(response.data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(502).json({ error: `Upstream-Fehler: ${error.message}` });
   }
 });
 
