@@ -1,7 +1,7 @@
 const express = require("express");
 const axios = require("axios");
 const { API_BASE, AXIOS_TIMEOUT, NODE_TYPE_CATEGORY, NODE_TYPE_CONTRIBUTION } = require("../config/constants");
-const { findNameBySignature } = require("../util/konvoluteLoader");
+const { findNameBySignature, findIdBySignature } = require("../util/konvoluteLoader");
 const router = express.Router();
 
 // In-Memory-Cache für verarbeitete Kategorien (TTL: 5 Minuten)
@@ -16,7 +16,7 @@ function parsePool(poolString) {
   return poolString
     .split(/[\n,]+/)
     .map((id) => id.trim())
-    .filter((id) => id)
+    .filter((id) => id && findIdBySignature(id))
     .map((signature) => ({
       signature,
       name: findNameBySignature(signature) || null,
